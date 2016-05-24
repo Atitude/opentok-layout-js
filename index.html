@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="mockLayout">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Layout Test</title>
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style type="text/css" media="screen">
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        #layout {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+        }
+        #layout > div {
+            background-color: transparent;
+            display: inline-block;
+            
+            transition-property: all;
+            transition-duration: 0.5s;
+        }
+
+        #layout > .box {
+            padding: 10px;
+            visibility: hidden;
+        }
+
+        #layout > .box.visible {
+            visibility: visible;
+        }
+
+        #layout > .box > .btn-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+        }
+
+        #layout > .box .mask {
+            z-index: 999;
+            top: 0;
+            left: 0;
+            width: 100%;
+            bottom: 0;
+            background: rgba(50, 50, 250, 0.5);
+            position: absolute;
+            display: none;
+        }
+
+        #layout > .box.OT_big .mask {           
+            display: block;
+        }
+        
+        #buttons {
+            position: absolute;
+            top: 0px;
+            z-index: 1000;
+            background: #fff;
+            padding: 4px;
+        }
+        #buttons form {
+            padding: 10px;
+            margin-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+    <script src="http://static.opentok.com/v2/js/opentok.min.js"></script>
+    <script src="opentok-layout.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.4/angular.min.js"></script>    
+  </head>
+    <body ng-controller="LayoutController" ng-init="init()">
+        <div id="layout">
+            <div ng-repeat="attendee in attendees" class="box" id="{{'attendee-'+$index}}" ng-init="initPublisher($index)"  ng-class="{'OT_big': attendee.featured, 'visible': attendee.visible}" ng-click="featureAttendee(attendee)">
+                <button class="btn btn-xs btn-default btn-close" ng-click="removeElement($index)">&times;</button>
+                <div class="mask"></div>
+            </div>
+        </div>
+        <div id="buttons">
+            <button class="btn btn-xs btn-default" ng-click="settingsOpen = !settingsOpen;">Settings</button>
+            <div ng-show="settingsOpen">
+                <form>
+                    <div class="form-group">
+                        <button class="btn btn-xs btn-success" ng-click="addElement()">Add</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-inline">
+                            <input type="checkbox" ng-model="bigFirst" ng-change="changeOption()"> bigFirst
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-inline">
+                            <input type="checkbox" ng-model="alignTop" ng-change="changeOption()"> alignTop
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-inline">
+                            <input type="checkbox" ng-model="smallBottom" ng-change="changeOption()"> smallBottom
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-inline">
+                            <input type="checkbox" ng-model="bigFixedRatio" ng-change="changeOption()"> bigFixedRatio
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                           presentationMode
+                        </label>
+                        <select ng-model="presentationMode" ng-change="changeOption()" class="form-control">
+                            <option value="0" selected="selected">AUTO</option>
+                            <option value="1">HANGOUT</option>
+                            <option value="2">PIP</option>
+                        </select>  
+                    </div>
+                    <div class="form-group">
+                        <label>
+                           bigPercentage <small>({{bigPercentage}})</small>
+                        </label>
+                        <input type="range" name="points" min="55" max="95" step="5" ng-model="bigPercentage" ng-change="changeOption()">
+                    </div>
+                </form>                
+
+            </div>
+            
+        </div>
+    </body>
+
+  <script type="text/javascript">
+
+    OT.registerScreenSharingExtension('chrome', 'ecijlhkakkmfoilgmjkdnjpmednceink');
+    
+    var layoutContainer = document.getElementById("layout");
+    
+    var layoutManager = 
+        initLayoutContainer(
+            layoutContainer, 
+            {
+                maxRatio: 3/4,
+                minRatio: 9/16,
+                bigMinRatio: window.innerHeight / window.innerWidth,
+                bigPercentage: 0.85,
+                alignTop: false,
+                smallBottom: false,
+                bigFirst: false
+            }
+        );
+
+    angular.module('mockLayout', [])
+        .controller('LayoutController',
+            ['$scope', '$timeout', '$filter',
+                function($scope, $timeout, $filter) {
+                    
+                    $scope.attendees = [];
+
+                    $scope.bigFirst = false;
+                    $scope.alignTop = false;
+                    $scope.smallBottom = false;
+                    $scope.bigFixedRatio = false;
+                    $scope.hangoutMode = false;
+                    $scope.bigPercentage = 85;
+                    $scope.presentationMode = 0;
+
+                    $scope.initPublisher = function(i) {
+                        $timeout(function() {
+                            var el = document.getElementById('attendee-' + i);
+
+                            var publishOptions = {
+                                resolution: "1280x720",
+                                width: '100%',
+                                height: '100%',
+                                insertMode: 'append',
+                                style: {
+                                    nameDisplayMode: 'off',
+                                    buttonDisplayMode: 'off',
+                                    audioLevelDisplayMode: 'off',
+                                    videoDisabledDisplayMode: 'off'
+                                }
+                            };
+
+                            if ($scope.attendees[i].screen) {
+                                publishOptions.videoSource = 'screen';
+                            }                            
+                            
+                            OT.initPublisher(
+                                el,
+                                publishOptions,
+                                function (err) {
+                                    console.log(err);
+
+                                    $timeout(function(){
+                                        layoutManager.layout();
+                                        $scope.attendees[i].visible = true;
+                                    }, 50);
+                                }
+                            );
+
+                        }, 50 + (i * 50));
+                    };
+
+                    $scope.featureAttendee = function(attendee) {
+                        attendee.featured = !attendee.featured;
+
+                        $timeout(function(){layoutManager.layout()}, 10);
+                    };
+
+                    $scope.addElement = function(screen) {
+                        $scope.attendees.push({
+                            name: 'User Name',
+                            featured: false,
+                            visible: false,
+                            screen: !angular.isUndefined(screen)
+                        });
+                    };
+
+                    $scope.changeOption = function() {
+                        layoutManager.opts.bigFirst = $scope.bigFirst;
+                        layoutManager.opts.alignTop = $scope.alignTop;
+                        layoutManager.opts.smallBottom = $scope.smallBottom;
+                        layoutManager.opts.bigFixedRatio = $scope.bigFixedRatio;                        
+                        layoutManager.opts.bigPercentage = $scope.bigPercentage / 100;
+                        layoutManager.opts.presentationMode = $scope.presentationMode;
+                        
+                        $timeout(function(){layoutManager.layout()}, 10);
+                    };
+
+                    $scope.removeElement = function(i) {
+                        $scope.attendees.splice(i, 1);
+                        $timeout(function(){layoutManager.layout()}, 10);
+                    };
+
+                    window.onresize = function() {
+                        $timeout(function(){layoutManager.layout()}, 10);
+                    };
+                }
+            ]
+        );
+  </script>
+</html>
