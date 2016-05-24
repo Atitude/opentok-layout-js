@@ -13,7 +13,7 @@
 // in CommonJS context, this should be a `require()`d dependency.
 // in browser globals context, ...? (when using bower, there are dependencies that it has handled
 // for you, so these might be safe to assume)
-
+ 
 
 if (typeof module === 'undefined' || typeof module.exports === 'undefined') {
 	exports = window;
